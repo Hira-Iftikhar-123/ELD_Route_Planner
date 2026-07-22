@@ -2,6 +2,15 @@
 
 Full-stack trip planner for property-carrying CMV drivers (FMCSA 70 hrs / 8 days).
 
+## Live
+
+- **App (Vercel):** https://eld-route-planner-gules.vercel.app
+- **API (Render):** https://eld-route-planner-von8.onrender.com
+- **Health:** https://eld-route-planner-von8.onrender.com/api/health/
+- **GitHub:** https://github.com/Hira-Iftikhar-123/ELD_Route_Planner
+
+> Free Render instances sleep when idle — the first API request after a pause can take ~50s.
+
 ## HOS assumptions
 
 - Property-carrying, **70 hrs / 8 days**, no adverse driving conditions
