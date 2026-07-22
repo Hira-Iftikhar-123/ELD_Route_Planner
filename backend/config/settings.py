@@ -20,6 +20,9 @@ ALLOWED_HOSTS = [
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+# Render sets RENDER=true in the environment
+if os.getenv("RENDER"):
+    ALLOWED_HOSTS.extend([".onrender.com"])
 
 GEOLOCATION_API_KEY = os.getenv("GEOLOCATION_API_KEY", "")
 
@@ -89,7 +92,7 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
