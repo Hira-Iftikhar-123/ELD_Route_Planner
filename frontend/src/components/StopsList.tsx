@@ -31,11 +31,15 @@ function formatTime(iso: string) {
 function formatDuration(hours: number) {
   if (hours <= 0) return '—'
   if (hours < 1) return `${Math.round(hours * 60)}m`
-  return `${hours}h`
+  return `${hours.toFixed(2)}h`
+}
+
+export function scheduledStops(stops: TripPlanResponse['stops']) {
+  return stops.filter((s) => s.type !== 'arrival' || s.duration_hours > 0)
 }
 
 export default function StopsList({ stops }: Props) {
-  const visible = stops.filter((s) => s.type !== 'arrival' || s.duration_hours > 0)
+  const visible = scheduledStops(stops)
 
   return (
     <div className="stops-table-wrap">

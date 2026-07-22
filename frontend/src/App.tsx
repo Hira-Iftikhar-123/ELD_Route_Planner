@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import TripForm from './components/TripForm'
 import RouteMap from './components/RouteMap'
-import StopsList from './components/StopsList'
+import StopsList, { scheduledStops } from './components/StopsList'
 import DailyLogSheets from './components/DailyLogSheets'
 import { apiUrl } from './lib/api'
 import type { TripFormValues, TripPlanResponse } from './types'
+
+function hoursLabel(value: number) {
+  return `${value.toFixed(2)}h`
+}
 
 export default function App() {
   const [status, setStatus] = useState('Enter trip details to plan a legal HOS route.')
@@ -96,15 +100,21 @@ export default function App() {
               <div className="metrics">
                 <article className="metric">
                   <span className="metric-label">Miles</span>
-                  <strong className="metric-value">{plan.summary.total_miles}</strong>
+                  <strong className="metric-value">
+                    {plan.summary.total_miles.toFixed(1)}
+                  </strong>
                 </article>
                 <article className="metric">
                   <span className="metric-label">Drive hours</span>
-                  <strong className="metric-value">{plan.summary.total_drive_hours}</strong>
+                  <strong className="metric-value">
+                    {plan.summary.total_drive_hours.toFixed(2)}
+                  </strong>
                 </article>
                 <article className="metric">
                   <span className="metric-label">On-duty hours</span>
-                  <strong className="metric-value">{plan.summary.total_on_duty_hours}</strong>
+                  <strong className="metric-value">
+                    {plan.summary.total_on_duty_hours.toFixed(2)}
+                  </strong>
                 </article>
                 <article className="metric">
                   <span className="metric-label">Log days</span>
@@ -113,12 +123,15 @@ export default function App() {
                 <article className="metric">
                   <span className="metric-label">Cycle</span>
                   <strong className="metric-value metric-value--sm">
-                    {plan.summary.cycle_used_start}h → {plan.summary.cycle_used_end}h
+                    {hoursLabel(plan.summary.cycle_used_start)} →{' '}
+                    {hoursLabel(plan.summary.cycle_used_end)}
                   </strong>
                 </article>
                 <article className="metric">
                   <span className="metric-label">Stops</span>
-                  <strong className="metric-value">{plan.stops.length}</strong>
+                  <strong className="metric-value">
+                    {scheduledStops(plan.stops).length}
+                  </strong>
                 </article>
               </div>
             </section>
