@@ -16,7 +16,41 @@ export default function App() {
     setStatus('Your trip is being planned, please wait…')
     setPlan(null)
     try {
-      const res = await fetch(apiUrl('/api/plan-trip/'), {
+      // Wake free-tier API (cold start can look like a CORS failure)
+      try {
+        await fetch(apiUrl('/api/health/'), { method: 'GET' })
+      } catch {
+        setStatus('Waking up the API, please wait…')
+        await new Promise((r) => setTimeout(r, 2500))
+      }
+
+      const res = await fetchPlan(values)
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(
+          typeof data.detail === 'string' ? data.detail : `API error ${res.status}`,
+        )
+      }
+      const result = data as TripPlanResponse
+      setPlan(result)
+      setStatus(
+        `Planned ${result.summary.total_miles} mi across ${result.summary.days} day(s).`,
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Trip planning failed.'
+      setStatus(
+        /Failed to fetch|NetworkError|CORS/i.test(msg)
+          ? 'API is waking up or unreachable. Wait ~30s and try Plan trip again.'
+          : msg,
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchPlan(values: TripFormValues, attempt = 1): Promise<Response> {
+    try {
+      return await fetch(apiUrl('/api/plan-trip/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -26,23 +60,11 @@ export default function App() {
           cycle_used_hours: values.cycleUsedHours,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.detail || `API error ${res.status}`)
-      }
-      const result = data as TripPlanResponse
-      setPlan(result)
-      setStatus(
-        `Planned ${result.summary.total_miles} mi across ${result.summary.days} day(s).`,
-      )
     } catch (err) {
-      setStatus(
-        err instanceof Error
-          ? err.message
-          : 'Trip planning failed.',
-      )
-    } finally {
-      setLoading(false)
+      if (attempt >= 2) throw err
+      setStatus('Retrying after API wake-up…')
+      await new Promise((r) => setTimeout(r, 4000))
+      return fetchPlan(values, attempt + 1)
     }
   }
 
