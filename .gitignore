@@ -44,3 +44,4 @@ Thumbs.db
 
 # Local assets / docs (optional keep in repo)
 *.pdf
+.vercel
