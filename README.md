@@ -1,168 +1,83 @@
 # ELD Route Planner
 
-A full-stack web application built with Django, Django REST Framework, and React that helps commercial truck drivers plan trips, visualize routes, and generate Electronic Logging Device (ELD) daily log sheets based on Hours of Service (HOS) regulations.
+Full-stack trip planner for property-carrying CMV drivers (FMCSA 70 hrs / 8 days).
 
-## Features
+## HOS assumptions
 
-- Enter trip details:
-  - Current Location
-  - Pickup Location
-  - Drop-off Location
-  - Current Cycle Used (Hours)
+- Property-carrying, **70 hrs / 8 days**, no adverse driving conditions
+- Fuel at least every **1,000 miles** (~30 min on-duty)
+- **1 hour** on-duty for pickup and dropoff
+- **11h** driving / **14h** window / **30-min** break after 8h driving
+- **10h** off (sleeper) resets 11/14; **34h** restart when cycle is exhausted
+- Home terminal timezone: `America/Chicago`
 
-- Interactive route visualization
-  - Route from current location to pickup and drop-off
-  - Distance and estimated travel time
-  - Rest stop recommendations
-  - Fuel stop recommendations (every 1,000 miles)
+## Structure
 
-- Automatic ELD daily log generation
-  - Driving
-  - On Duty
-  - Off Duty
-  - Sleeper Berth
-  - Multi-day log generation for long trips
+- `frontend/` — React + Vite → **deploy on Vercel**
+- `backend/` — Django API → **deploy on Render** (or Railway/Fly)
+- `vercel.json` — builds the frontend from the repo root
 
-- Hours of Service (HOS) calculations
-  - 70 hours / 8-day cycle
-  - Mandatory rest breaks
-  - Pickup and drop-off time allocation
+> Django cannot run as a normal long-lived app on Vercel. Frontend goes to Vercel; API goes to Render. Both are free-tier friendly.
 
-## Tech Stack
+## Local setup
 
-### Frontend
+### 1. Environment
 
-- React
-- Vite
-- Tailwind CSS
-- Axios
-- Leaflet or Mapbox
+Copy `.env.example` → `.env` and set `GEOLOCATION_API_KEY`.
 
-### Backend
-
-- Django
-- Django REST Framework
-
-### APIs
-
-- OpenRouteService or OSRM
-- OpenStreetMap
-
-## Project Structure
-
-```text
-eld-route-planner/
-│
-├── backend/
-│   ├── Django Project
-│   ├── REST API
-│   └── HOS & ELD Logic
-│
-├── frontend/
-│   ├── React Application
-│   ├── Components
-│   ├── Pages
-│   └── Services
-│
-└── README.md
-```
-
-## Getting Started
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/your-username/eld-route-planner.git
-
-cd eld-route-planner
-```
-
-## Backend Setup
-
-Create and activate a virtual environment.
+### 2. Backend
 
 ```bash
 cd backend
-
 python -m venv venv
-```
-
-Linux/macOS
-
-```bash
-source venv/bin/activate
-```
-
-Windows
-
-```bash
 venv\Scripts\activate
-```
-
-Install dependencies.
-
-```bash
 pip install -r requirements.txt
-```
-
-Apply database migrations.
-
-```bash
 python manage.py migrate
-```
-
-Start the development server.
-
-```bash
 python manage.py runserver
 ```
 
-## Frontend Setup
+Health: http://127.0.0.1:8000/api/health/
+
+### 3. Frontend
 
 ```bash
 cd frontend
-
 npm install
-
 npm run dev
 ```
 
-## Environment Variables
+App: http://127.0.0.1:5173/  
+Locally, Vite proxies `/api` to Django (no `VITE_API_URL` needed).
 
-Create a `.env` file in the backend directory.
+---
 
-```env
-SECRET_KEY=your_secret_key
-DEBUG=True
-OPENROUTESERVICE_API_KEY=your_api_key
-```
+## Deploy (recommended)
 
-## Assumptions
+### A. Backend on Render
 
-The application follows the assessment assumptions:
+1. Push this repo to GitHub.
+2. [Render](https://render.com) → **New** → **Blueprint** (uses `render.yaml`), or **Web Service** with:
+   - **Root Directory:** `backend`
+   - **Build:** `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput`
+   - **Start:** `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`
+3. Set env vars:
+   - `GEOLOCATION_API_KEY`
+   - `DJANGO_SECRET_KEY` (random)
+   - `DJANGO_DEBUG=false`
+   - `DJANGO_ALLOWED_HOSTS` = your Render host, e.g. `eld-api.onrender.com`
+   - `CORS_ALLOWED_ORIGINS` = your Vercel URL, e.g. `https://eld-route-planner.vercel.app`  
+     (`*.vercel.app` previews are already allowed via regex in settings)
+4. Note the API URL, e.g. `https://eld-api.onrender.com`
 
-- Property-carrying driver
-- 70-hour / 8-day cycle
-- No adverse driving conditions
-- Fuel stop every 1,000 miles
-- One hour allocated for pickup
-- One hour allocated for drop-off
+### B. Frontend on Vercel
 
-## Future Improvements
+1. [Vercel](https://vercel.com) → **Add New Project** → import this GitHub repo.
+2. Leave root as the repo root (uses root `vercel.json`), **or** set Root Directory to `frontend`.
+3. Environment variable:
+   - `VITE_API_URL` = `https://eld-api.onrender.com` (no trailing slash)
+4. Deploy. Your live app URL is the assessment deliverable.
 
-- PDF export for ELD logs
-- User authentication
-- Trip history
-- Driver dashboard
-- Fleet management
-- Real-time traffic integration
-- Weather integration
+### After deploy checklist
 
-## Demo
-
-**Live Application:** Coming Soon
-
-**Loom Walkthrough:** Coming Soon
-## License
-
-This project was developed as part of a technical assessment and is intended for educational and demonstration purposes.
+- Open Vercel URL → Plan trip → health/API calls succeed (no CORS errors).
+- `GET https://your-api.onrender.com/api/health/` returns `{ "status": "ok", ... }`.

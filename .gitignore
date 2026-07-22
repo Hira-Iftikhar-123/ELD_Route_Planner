@@ -1,0 +1,46 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+backend/venv/
+*.egg-info/
+dist/
+build/
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local assets / docs (optional keep in repo)
+*.pdf
