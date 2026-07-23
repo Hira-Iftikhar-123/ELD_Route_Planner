@@ -10,8 +10,8 @@ const LABELS: Record<string, string> = {
   dropoff: 'Dropoff',
   fuel: 'Fuel',
   break_30: 'Break',
-  rest_10: '10-hr rest',
-  restart_34: '34-hr reset',
+  rest_10: '10 hr rest',
+  restart_34: '34 hr reset',
 }
 
 function formatTime(iso: string) {
@@ -29,7 +29,7 @@ function formatTime(iso: string) {
 }
 
 function formatDuration(hours: number) {
-  if (hours <= 0) return '—'
+  if (hours <= 0) return '0'
   if (hours < 1) return `${Math.round(hours * 60)}m`
   return `${hours.toFixed(2)}h`
 }

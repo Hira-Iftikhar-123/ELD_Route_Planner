@@ -120,7 +120,7 @@ def plan_hos_trip(
         lat=pickup_lat,
         lon=pickup_lon,
         stop_type="pickup",
-        remark=f"Pickup — {PICKUP_HOURS:.0f} hr on-duty at {pickup_label}",
+        remark=f"{PICKUP_HOURS:.0f} hr on duty at {pickup_label}",
     )
 
     _drive_leg(
@@ -140,7 +140,7 @@ def plan_hos_trip(
         lat=dropoff_lat,
         lon=dropoff_lon,
         stop_type="dropoff",
-        remark=f"Dropoff — {DROPOFF_HOURS:.0f} hr on-duty at {dropoff_label}",
+        remark=f"{DROPOFF_HOURS:.0f} hr on duty at {dropoff_label}",
     )
 
     _pad_final_off_duty(state)
@@ -219,7 +219,7 @@ def _drive_leg(
 
         miles_room = FUEL_EVERY_MILES - state.miles_since_fuel
         if miles_room <= 0:
-            _fuel_stop(state, label=from_label if remaining_miles == miles else f"Fuel near {to_label}")
+            _fuel_stop(state, destination=to_label)
             continue
 
         drive_room = min(
@@ -233,15 +233,15 @@ def _drive_leg(
 
         if drive_room <= MIN_SLICE_HOURS:
             if state.drive_since_break >= BREAK_AFTER_DRIVE_HOURS - 1e-6:
-                _rest_break(state, label=f"30-min break en route to {to_label}")
+                _rest_break(state, destination=to_label)
                 continue
             if state.drive_used >= MAX_DRIVE_HOURS - 1e-6 or _window_remaining(state) <= MIN_SLICE_HOURS:
-                _ten_hour_reset(state, label=f"10-hr reset before continuing to {to_label}")
+                _ten_hour_reset(state, destination=to_label)
                 continue
             if state.cycle_used >= CYCLE_LIMIT_HOURS - 1e-6:
-                _thirty_four_restart(state, label="34-hr restart — weekly cycle exhausted")
+                _thirty_four_restart(state)
                 continue
-            _ten_hour_reset(state, label=f"10-hr reset before continuing to {to_label}")
+            _ten_hour_reset(state, destination=to_label)
             continue
 
         slice_hours = drive_room
@@ -265,7 +265,7 @@ def _drive_leg(
         remaining_hours -= slice_hours
 
         if state.miles_since_fuel >= FUEL_EVERY_MILES - 1e-6 and remaining_hours > MIN_SLICE_HOURS:
-            _fuel_stop(state, label=f"Fuel stop en route to {to_label}")
+            _fuel_stop(state, destination=to_label)
 
     state.stops.append(
         StopEvent(
@@ -284,11 +284,11 @@ def _ensure_can_drive(state: _ShiftState) -> None:
     if state.window_start is None:
         return
     if state.cycle_used >= CYCLE_LIMIT_HOURS - 1e-6:
-        _thirty_four_restart(state, label="34-hr restart — weekly cycle exhausted")
+        _thirty_four_restart(state)
     elif state.drive_used >= MAX_DRIVE_HOURS - 1e-6 or _window_remaining(state) <= MIN_SLICE_HOURS:
-        _ten_hour_reset(state, label="10-hr off-duty reset")
+        _ten_hour_reset(state, destination="next duty period")
     elif state.drive_since_break >= BREAK_AFTER_DRIVE_HOURS - 1e-6:
-        _rest_break(state, label="30-min break from driving")
+        _rest_break(state, destination="route")
 
 
 def _window_remaining(state: _ShiftState) -> float:
@@ -320,9 +320,9 @@ def _on_duty_stop(
         )
         if room <= MIN_SLICE_HOURS:
             if state.cycle_used >= CYCLE_LIMIT_HOURS - 1e-6:
-                _thirty_four_restart(state, label="34-hr restart before on-duty work")
+                _thirty_four_restart(state)
             else:
-                _ten_hour_reset(state, label="10-hr reset before on-duty work")
+                _ten_hour_reset(state, destination=label)
             continue
 
         chunk = room
@@ -352,14 +352,14 @@ def _on_duty_stop(
             )
 
 
-def _fuel_stop(state: _ShiftState, *, label: str) -> None:
-    remark = f"Fueling (~{FUEL_STOP_HOURS * 60:.0f} min) — {label}"
+def _fuel_stop(state: _ShiftState, *, destination: str) -> None:
+    remark = f"Fuel stop en route to {destination}"
     start = state.now
     _add_segment(
         state,
         status="on_duty",
         hours=FUEL_STOP_HOURS,
-        location=label,
+        location=destination,
         remark=remark,
         miles=0.0,
         counts_drive=False,
@@ -370,7 +370,7 @@ def _fuel_stop(state: _ShiftState, *, label: str) -> None:
     state.stops.append(
         StopEvent(
             type="fuel",
-            label=label,
+            label=destination,
             lat=0.0,
             lon=0.0,
             arrival=start,
@@ -380,15 +380,19 @@ def _fuel_stop(state: _ShiftState, *, label: str) -> None:
     )
 
 
-def _rest_break(state: _ShiftState, *, label: str) -> None:
+def _rest_break(state: _ShiftState, *, destination: str) -> None:
     hours = BREAK_MINUTES / 60.0
-    remark = f"30-minute break from driving — {label}"
+    remark = (
+        "30 min break from driving"
+        if destination in ("route", "")
+        else f"30 min break en route to {destination}"
+    )
     start = state.now
     _add_segment(
         state,
         status="off_duty",
         hours=hours,
-        location=label,
+        location=destination,
         remark=remark,
         miles=0.0,
         counts_drive=False,
@@ -398,7 +402,7 @@ def _rest_break(state: _ShiftState, *, label: str) -> None:
     state.stops.append(
         StopEvent(
             type="break_30",
-            label=label,
+            label=destination,
             lat=0.0,
             lon=0.0,
             arrival=start,
@@ -408,14 +412,18 @@ def _rest_break(state: _ShiftState, *, label: str) -> None:
     )
 
 
-def _ten_hour_reset(state: _ShiftState, *, label: str) -> None:
-    remark = f"10 consecutive hours off duty — {label}"
+def _ten_hour_reset(state: _ShiftState, *, destination: str) -> None:
+    remark = (
+        "10 hr off duty reset"
+        if destination == "next duty period"
+        else f"10 hr off duty before continuing to {destination}"
+    )
     start = state.now
     _add_segment(
         state,
         status="sleeper",
         hours=RESET_OFF_HOURS,
-        location=label,
+        location=destination,
         remark=remark,
         miles=0.0,
         counts_drive=False,
@@ -426,7 +434,7 @@ def _ten_hour_reset(state: _ShiftState, *, label: str) -> None:
     state.stops.append(
         StopEvent(
             type="rest_10",
-            label=label,
+            label=destination,
             lat=0.0,
             lon=0.0,
             arrival=start,
@@ -436,14 +444,14 @@ def _ten_hour_reset(state: _ShiftState, *, label: str) -> None:
     )
 
 
-def _thirty_four_restart(state: _ShiftState, *, label: str) -> None:
-    remark = f"34-hour restart — {label}"
+def _thirty_four_restart(state: _ShiftState) -> None:
+    remark = "34 hour restart after weekly cycle limit"
     start = state.now
     _add_segment(
         state,
         status="off_duty",
         hours=RESTART_34_HOURS,
-        location=label,
+        location="Off duty",
         remark=remark,
         miles=0.0,
         counts_drive=False,
@@ -455,7 +463,7 @@ def _thirty_four_restart(state: _ShiftState, *, label: str) -> None:
     state.stops.append(
         StopEvent(
             type="restart_34",
-            label=label,
+            label="34 hour restart",
             lat=0.0,
             lon=0.0,
             arrival=start,
@@ -537,7 +545,7 @@ def _on_duty_hours(segments: list[Segment]) -> float:
 def _cycle_after_segments(segments: list[Segment], start_cycle: float) -> float:
     used = start_cycle
     for s in segments:
-        if "34-hour restart" in (s.remark or ""):
+        if "34 hour restart" in (s.remark or ""):
             used = 0.0
             continue
         if s.status in ("driving", "on_duty"):
@@ -604,7 +612,7 @@ def _apply_recap(
 
         on_duty_today = totals["driving"] + totals["on_duty"]
         for s in day_segs:
-            if "34-hour restart" in (s.remark or ""):
+            if "34 hour restart" in (s.remark or ""):
                 running_cycle = 0.0
         running_cycle += on_duty_today
         available_tomorrow = max(0.0, CYCLE_LIMIT_HOURS - running_cycle)
