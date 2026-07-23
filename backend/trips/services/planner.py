@@ -25,6 +25,9 @@ def plan_trip(
     except GeocodingError as exc:
         raise TripPlannerError(str(exc)) from exc
 
+    if _same_place(pickup, dropoff):
+        raise TripPlannerError("Pickup and dropoff must be different locations.")
+
     try:
         routed: FullRoute = route_places([current, pickup, dropoff])
     except RoutingError as exc:
@@ -72,6 +75,12 @@ def _geocode_many(queries: list[str]) -> list[Place]:
 
 def _place_dict(place: Place) -> dict:
     return {"label": place.label, "lat": place.lat, "lon": place.lon}
+
+
+def _same_place(a: Place, b: Place) -> bool:
+    if a.label.casefold() == b.label.casefold():
+        return True
+    return abs(a.lat - b.lat) < 0.05 and abs(a.lon - b.lon) < 0.05
 
 
 def _snap_stops_to_route(

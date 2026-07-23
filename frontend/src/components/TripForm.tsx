@@ -88,6 +88,8 @@ export default function TripForm({ onSubmit, loading }: Props) {
   const [dropoffLocation, setDropoffLocation] = useState('')
   const [cycleUsedHours, setCycleUsedHours] = useState(0)
 
+  const [formError, setFormError] = useState('')
+
   function clampCycle(value: number) {
     if (Number.isNaN(value)) return 0
     return Math.min(CYCLE_MAX, Math.max(0, Math.round(value / CYCLE_STEP) * CYCLE_STEP))
@@ -99,6 +101,11 @@ export default function TripForm({ onSubmit, loading }: Props) {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (pickupLocation && pickupLocation === dropoffLocation) {
+      setFormError('Pickup and dropoff must be different cities.')
+      return
+    }
+    setFormError('')
     void onSubmit({
       currentLocation: currentLocation.trim(),
       pickupLocation: pickupLocation.trim(),
@@ -183,6 +190,11 @@ export default function TripForm({ onSubmit, loading }: Props) {
       <button className="btn-primary" type="submit" disabled={loading}>
         {loading ? 'Planning…' : 'Plan trip'}
       </button>
+      {formError ? (
+        <p className="form-error" role="alert">
+          {formError}
+        </p>
+      ) : null}
     </form>
   )
 }

@@ -10,6 +10,21 @@ function hoursLabel(value: number) {
   return `${value.toFixed(2)}h`
 }
 
+function apiErrorMessage(data: unknown, status: number): string {
+  if (!data || typeof data !== 'object') return `API error ${status}`
+  const payload = data as Record<string, unknown>
+  if (typeof payload.detail === 'string') return payload.detail
+  for (const key of ['dropoff_location', 'pickup_location', 'current_location', 'cycle_used_hours']) {
+    const value = payload[key]
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
+    if (typeof value === 'string') return value
+  }
+  if (Array.isArray(payload.non_field_errors) && typeof payload.non_field_errors[0] === 'string') {
+    return payload.non_field_errors[0]
+  }
+  return `API error ${status}`
+}
+
 export default function App() {
   const [status, setStatus] = useState('Enter trip details to plan a legal HOS route.')
   const [loading, setLoading] = useState(false)
@@ -31,9 +46,7 @@ export default function App() {
       const res = await fetchPlan(values)
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(
-          typeof data.detail === 'string' ? data.detail : `API error ${res.status}`,
-        )
+        throw new Error(apiErrorMessage(data, res.status))
       }
       const result = data as TripPlanResponse
       setPlan(result)

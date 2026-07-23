@@ -15,3 +15,12 @@ class TripPlanSerializer(serializers.Serializer):
 
     def validate_dropoff_location(self, value: str) -> str:
         return value.strip()
+
+    def validate(self, attrs):
+        pickup = attrs["pickup_location"].casefold()
+        dropoff = attrs["dropoff_location"].casefold()
+        if pickup == dropoff:
+            raise serializers.ValidationError(
+                {"dropoff_location": "Pickup and dropoff must be different cities."}
+            )
+        return attrs
