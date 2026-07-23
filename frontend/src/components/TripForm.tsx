@@ -1,10 +1,14 @@
 import { useState, type FormEvent } from 'react'
+import { US_CITIES } from '../data/usCities'
 import type { TripFormValues } from '../types'
 
 type Props = {
   onSubmit: (values: TripFormValues) => void | Promise<void>
   loading?: boolean
 }
+
+const CYCLE_STEP = 0.25
+const CYCLE_MAX = 70
 
 function IconPin() {
   return (
@@ -51,11 +55,47 @@ function IconClock() {
   )
 }
 
+function CitySelect({
+  value,
+  onChange,
+  required,
+}: {
+  value: string
+  onChange: (value: string) => void
+  required?: boolean
+}) {
+  return (
+    <select
+      required={required}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="" disabled>
+        Select a US city
+      </option>
+      {US_CITIES.map((city) => (
+        <option key={city} value={city}>
+          {city}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export default function TripForm({ onSubmit, loading }: Props) {
   const [currentLocation, setCurrentLocation] = useState('')
   const [pickupLocation, setPickupLocation] = useState('')
   const [dropoffLocation, setDropoffLocation] = useState('')
   const [cycleUsedHours, setCycleUsedHours] = useState(0)
+
+  function clampCycle(value: number) {
+    if (Number.isNaN(value)) return 0
+    return Math.min(CYCLE_MAX, Math.max(0, Math.round(value / CYCLE_STEP) * CYCLE_STEP))
+  }
+
+  function adjustCycle(delta: number) {
+    setCycleUsedHours((prev) => clampCycle(prev + delta))
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -63,7 +103,7 @@ export default function TripForm({ onSubmit, loading }: Props) {
       currentLocation: currentLocation.trim(),
       pickupLocation: pickupLocation.trim(),
       dropoffLocation: dropoffLocation.trim(),
-      cycleUsedHours: Number(cycleUsedHours) || 0,
+      cycleUsedHours: clampCycle(Number(cycleUsedHours) || 0),
     })
   }
 
@@ -75,11 +115,10 @@ export default function TripForm({ onSubmit, loading }: Props) {
             <IconPin />
             Current location
           </span>
-          <input
+          <CitySelect
             required
             value={currentLocation}
-            onChange={(e) => setCurrentLocation(e.target.value)}
-            placeholder="e.g. Chicago, IL"
+            onChange={setCurrentLocation}
           />
         </label>
         <label className="field">
@@ -87,11 +126,10 @@ export default function TripForm({ onSubmit, loading }: Props) {
             <IconPickup />
             Pickup location
           </span>
-          <input
+          <CitySelect
             required
             value={pickupLocation}
-            onChange={(e) => setPickupLocation(e.target.value)}
-            placeholder="e.g. Indianapolis, IN"
+            onChange={setPickupLocation}
           />
         </label>
         <label className="field">
@@ -99,11 +137,10 @@ export default function TripForm({ onSubmit, loading }: Props) {
             <IconDropoff />
             Dropoff location
           </span>
-          <input
+          <CitySelect
             required
             value={dropoffLocation}
-            onChange={(e) => setDropoffLocation(e.target.value)}
-            placeholder="e.g. Atlanta, GA"
+            onChange={setDropoffLocation}
           />
         </label>
         <label className="field">
@@ -111,15 +148,36 @@ export default function TripForm({ onSubmit, loading }: Props) {
             <IconClock />
             Current cycle used (Hrs)
           </span>
-          <input
-            required
-            type="number"
-            min={0}
-            max={70}
-            step={0.25}
-            value={cycleUsedHours}
-            onChange={(e) => setCycleUsedHours(Number(e.target.value))}
-          />
+          <div className="cycle-stepper">
+            <button
+              type="button"
+              className="cycle-btn"
+              aria-label="Decrease cycle hours"
+              onClick={() => adjustCycle(-CYCLE_STEP)}
+              disabled={cycleUsedHours <= 0}
+            >
+              −
+            </button>
+            <input
+              required
+              type="number"
+              min={0}
+              max={CYCLE_MAX}
+              step={CYCLE_STEP}
+              value={cycleUsedHours}
+              onChange={(e) => setCycleUsedHours(clampCycle(Number(e.target.value)))}
+              inputMode="decimal"
+            />
+            <button
+              type="button"
+              className="cycle-btn"
+              aria-label="Increase cycle hours"
+              onClick={() => adjustCycle(CYCLE_STEP)}
+              disabled={cycleUsedHours >= CYCLE_MAX}
+            >
+              +
+            </button>
+          </div>
         </label>
       </div>
       <button className="btn-primary" type="submit" disabled={loading}>
